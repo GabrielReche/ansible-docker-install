@@ -1,7 +1,7 @@
-# Ansible SSH Key Generation
+# Ansible install docker
 
 ## Visão Geral
-Este projeto contém um playbook Ansible para gerar pares de chaves SSH em servidores remotos.
+Este projeto contém um playbook Ansible para instalar o docker em servidores remotos.
 
 Neste playbook:
 
