@@ -1,0 +1,104 @@
+---
+- name: Playbook para instalar Docker, Docker Compose e executar Docker Compose
+  hosts: all
+  become: true
+  tasks:
+    # Atualizar o índice de pacotes do APT
+    - name: Atualizar o índice de pacotes do APT
+      ansible.builtin.apt:
+        update_cache: yes
+
+    # Instalar pacotes necessários para APT usar um repositório via HTTPS
+    - name: Instalar pacotes necessários para APT usar um repositório via HTTPS
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+
+    # Adicionar a chave GPG oficial do Docker
+    - name: Adicionar a chave GPG oficial do Docker
+      ansible.builtin.shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/docker-archive-keyring.gpg
+
+    # Adicionar o repositório do Docker
+    - name: Adicionar o repositório do Docker
+      ansible.builtin.shell: |
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      args:
+        creates: /etc/apt/sources.list.d/docker.list
+
+    # Atualizar o índice de pacotes do APT novamente
+    - name: Atualizar o índice de pacotes do APT novamente
+      ansible.builtin.apt:
+        update_cache: yes
+
+    # Certificar-se de que está instalando a partir do repositório Docker
+    - name: Certificar-se de que está instalando a partir do repositório Docker
+      ansible.builtin.command:
+        cmd: apt-cache policy docker-ce
+
+    # Instalar o Docker
+    - name: Instalar o Docker
+      ansible.builtin.apt:
+        name: docker-ce
+        state: present
+
+    # Verificar se o Docker está instalado e funcionando
+    - name: Verificar se o Docker está instalado e funcionando
+      ansible.builtin.systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    # Baixar a versão mais recente do Docker Compose
+    - name: Baixar a versão mais recente do Docker Compose
+      ansible.builtin.shell: |
+        curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+      args:
+        creates: /usr/local/bin/docker-compose
+
+    # Aplicar permissões executáveis ao binário do Docker Compose
+    - name: Aplicar permissões executáveis ao binário do Docker Compose
+      ansible.builtin.file:
+        path: /usr/local/bin/docker-compose
+        mode: "0755"
+
+    # Verificar se a instalação do Docker Compose foi bem-sucedida
+    - name: Verificar se a instalação do Docker Compose foi bem-sucedida
+      ansible.builtin.command:
+        cmd: docker-compose --version
+
+    # Adicionar o usuário atual ao grupo Docker
+    - name: Adicionar o usuário atual ao grupo Docker
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    # Verificar a versão do Docker
+    - name: Verificar a versão do Docker
+      ansible.builtin.command:
+        cmd: docker --version
+
+    # Verificar a versão do Docker Compose
+    - name: Verificar a versão do Docker Compose
+      ansible.builtin.command:
+        cmd: docker-compose --version
+
+    # Criar diretório /dl na raiz
+    # - name: Criar diretório /dl na raiz
+    #   ansible.builtin.file:
+    #     path: /dl
+    #     state: directory
+    #     mode: "0755"
+
+    # Copiar arquivo docker-compose.yml para o diretório /dl na máquina de destino
+    # - name: Copiar arquivo docker-compose.yml para o diretório /dl na máquina de destino
+    #   ansible.builtin.copy:
+    #     src: docker-compose.yml
+    #     dest: /dl/docker-compose.yml
